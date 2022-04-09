@@ -4,8 +4,8 @@
 
 int main (void)
 {   
-    const unsigned int width    = 1920;
-    const unsigned int heigth   = 1080;
+    const unsigned int width    = 810;
+    const unsigned int heigth   = 540;
     const double x_shift_delta  = 0.1;
     const double y_shift_delta  = 0.1;
     const double scale_delta    = 1.1;
