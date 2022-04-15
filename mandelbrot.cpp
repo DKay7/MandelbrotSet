@@ -1,5 +1,6 @@
 #include "mandelbrot.h"
 #include <immintrin.h>
+#include <x86intrin.h>
 
 //flexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 
@@ -7,7 +8,7 @@ Mandelbrot::Mandelbrot (unsigned int width, unsigned int heigth): bg_texture(), 
 {   
     this->width = width;
     this->heigth = heigth;
-    pixels_colors = new uint8_t[width * heigth * 4]; 
+    pixels_colors = new uint32_t[width * heigth]; 
     bg_texture.create (width, heigth);
     bg_sprite.setTextureRect (sf::IntRect(0, 0, width, heigth));
     bg_sprite.setTexture (bg_texture, false);
@@ -24,69 +25,62 @@ const sf::Sprite& Mandelbrot::GetBgSprite ()
 
 void Mandelbrot::DrawMandelbrotSet()
 {   
-    unsigned int cur_pixel = 0;
     for (unsigned int dy = 0; dy < heigth; dy++)
     {   
         double y0_double = ((double) dy / heigth + y_shift) * 2 / scale;
-
         for (unsigned int dx = 0; dx < width; dx+=4)
         {   
-            // double x0 = ((double) dx / width  + x_shift) * 3 / scale; 
-            __m256d x0 = _mm256_set_pd (0, 1, 2, 3);            // offsets
+            __m256d x0 = _mm256_set_pd (3, 2, 1, 0);            // offsets
             __m256d y0 = _mm256_set1_pd (y0_double);
 
             x0 = _mm256_add_pd (x0, _mm256_set1_pd (dx));
             x0 = _mm256_div_pd (x0, _mm256_set1_pd (width));
             x0 = _mm256_add_pd (x0, _mm256_set1_pd (x_shift));
-            x0 = _mm256_mul_pd (x0, _mm256_set1_pd (3));
+            x0 = _mm256_mul_pd (x0, _mm256_set1_pd (3.0));
             x0 = _mm256_div_pd (x0, _mm256_set1_pd (scale));
-
-            // double x = x0;
-            // double y = y0;
+ 
             __m256d x = x0;
             __m256d y = y0;
-            __m256d x_sq = _mm256_mul_pd (x, x);
-            __m256d y_sq = _mm256_mul_pd (y, y);
+            __m256d colored = _mm256_set1_pd (0);
 
-            __m256d was_all_colored = _mm256_set1_pd (0);
             int n = 0;
-            
-            for (; n < max_iterations && ; n++)
+            for (int i_pixel = 0; i_pixel < 4; i_pixel++)
+                SetPixelColor (dy * width + dx + i_pixel, 0, 0, 0, 0xFF);
+
+            for (; n < max_iterations; n++)
             {   
-                x = _mm256_add_pd(_mm256_sub_pd (x_sq, y_sq), x0);
-                y = _mm256_fmadd_pd(_mm256_set1_pd (2.0), _mm256_mul_pd(x, y), y0);
+                __m256d x_sq = _mm256_mul_pd (x, x);
+                __m256d y_sq = _mm256_mul_pd (y, y);
+                __m256d xy   = _mm256_mul_pd (x, y);
+                x = _mm256_add_pd(_mm256_sub_pd(x_sq, y_sq), x0);
+                y = _mm256_add_pd(_mm256_add_pd(xy, xy), y0);
 
-                x_sq = _mm256_mul_pd (x, x);
-                y_sq = _mm256_mul_pd (y, y);
-
-                __m256d cmp = _mm256_cmp_pd (_mm256_add_pd (x_sq, y_sq), _mm256_set1_pd(max_distance_sq), _CMP_GT_OQ);
-                // printf ("%llX\n", *(long long*)&cmp);
-
-
-                for (int i = 0; i < 4; i++)
-                {   
-                    // int cur_pixel = 4 * (dy * width + dx + i);
-                    if (*((long long*)&cmp + i))
-                    {   
-                        int red     = n;
-                        int green   = 7 * n;
-                        int blue    = 128 + n;
-                        int alpha   = 0xFF;
-                        
-                        SetPixelColor (cur_pixel + (3 - i), red, green, blue, alpha);
-                    }
-                    else
-                        SetPixelColor (cur_pixel + (3 - i), 128, 0, 0, 0xFF);
+                __m256d r2 = _mm256_add_pd(x_sq, y_sq);
+                __m256d cmp = _mm256_cmp_pd(r2, _mm256_set1_pd(max_distance_sq), _CMP_GT_OQ);
+                
+                if (_mm256_movemask_pd(colored) == 0xFFFF)
+                {
+                    break;
                 }
 
-                was_all_colored = _mm256_or_pd (was_all_colored, cmp);
-            }
-            cur_pixel += 4;
-                        
-        }
-    }
+                cmp = _mm256_andnot_pd (colored, cmp);
+                
+                for (int i_cmp = 0; i_cmp < 4; i_cmp++)
+                {   
+                    
+                    if (*((double*)&cmp + i_cmp))
+                    {   
+                        SetPixelColor(dy * width + dx + i_cmp, 7 * n, 128 - 7 * n, 255 - 7 * n, 0xFF);
+                    }
+                }
 
-    bg_texture.update (pixels_colors);
+                colored = _mm256_or_pd (colored, cmp);
+                
+            }
+        }
+    }  
+    
+    bg_texture.update ((uint8_t*)pixels_colors);
     return;
 }
 
@@ -95,13 +89,10 @@ double Mandelbrot::CountDistanceSq (double x, double y)
     return x * x + y * y;
 }
 
-void Mandelbrot::SetPixelColor (int cur_pixel, int R, int G, int B, int A)
+void Mandelbrot::SetPixelColor (int cur_pixel, uint8_t R, uint8_t G, uint8_t B, uint8_t A)
 {
-    pixels_colors[cur_pixel] = R;
-    pixels_colors[cur_pixel + 1] = G;
-    pixels_colors[cur_pixel + 2] = B;
-    pixels_colors[cur_pixel + 3] = A;
 
+    pixels_colors[cur_pixel] = 0x1000000 * A + 0x10000 * B + 0x100 * G + R;
     return;
 }
 

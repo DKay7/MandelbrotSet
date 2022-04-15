@@ -4,8 +4,8 @@
 
 int main (void)
 {   
-    const unsigned int width    = 810;
-    const unsigned int heigth   = 540;
+    const unsigned int width    = 1920;
+    const unsigned int heigth   = 1080;
     const double x_shift_delta  = 0.1;
     const double y_shift_delta  = 0.1;
     const double scale_delta    = 1.1;
@@ -14,19 +14,20 @@ int main (void)
     sf::Event event;
     Fps fps;
     Mandelbrot mandelbrot(width, heigth);
+    bool is_draw = false;
 
     while (window.isOpen())
     {
         
 		while (window.pollEvent(event))
-		{
+		{   
 			if (event.type == sf::Event::Closed) window.close();
 			if (event.type == sf::Event::KeyPressed)
 			{
                 switch (event.key.code)
                 {
                     case sf::Keyboard::Escape:
-                        window.close();
+                        is_draw = !is_draw;
                         break;
 
                     case sf::Keyboard::Left:
@@ -58,13 +59,18 @@ int main (void)
 			}
 		}
 
+        
         fps.UpdateFps ();
         mandelbrot.DrawMandelbrotSet ();
 
-        window.clear();
-        window.draw (mandelbrot.GetBgSprite ());
+        if (is_draw)
+        {
+            window.draw (mandelbrot.GetBgSprite ());
+        }
+
         window.draw (fps.GetFpsText());
         window.display();
+
     }
 
     return 0;

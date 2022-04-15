@@ -1,5 +1,5 @@
 CXX=g++
-CXXFLAGS=-Wall -Wextra -mavx -Ofast -march=native
+CXXFLAGS=-Wall -Wextra  -march=native -mavx
 DEPS=
 OBJ=main.o fps.o mandelbrot.o 
 ODIR=obj

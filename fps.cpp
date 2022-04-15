@@ -9,7 +9,7 @@ Fps::Fps ()
     fps_string_format = "fps: %.3lg";
     curr_time = 0;
     last_index = 0;
-    fps_values.resize (4096);
+    fps_values.resize (256);
 
     prev_time = clock.getElapsedTime().asSeconds();
     
@@ -21,7 +21,7 @@ Fps::Fps ()
 
     fps_text.setFont (fps_font);
     fps_text.setCharacterSize (32); 
-    fps_text.setFillColor (sf::Color::Cyan);
+    fps_text.setFillColor (sf::Color::Red);
 }
 
 //flexxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -30,7 +30,7 @@ void Fps::UpdateFps ()
 {
     curr_time = clock.getElapsedTime ().asSeconds();
 
-    double fps = 1 / (curr_time - prev_time);
+    double fps = 1.0 / (curr_time - prev_time);
     
     fps_values[last_index++ % fps_values.size()] = fps;
 
